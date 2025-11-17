@@ -3,7 +3,6 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.6.0/firebas
 import { getAuth } from "https://www.gstatic.com/firebasejs/10.6.0/firebase-auth.js";
 import { getFirestore } from "https://www.gstatic.com/firebasejs/10.6.0/firebase-firestore.js";
 
-// Your Firebase configuration
 const firebaseConfig = {
   apiKey: "AIzaSyAGxleWApz6RjpekwNixa2dtK0eZS6hcY4",
   authDomain: "mitechronos.firebaseapp.com",
@@ -14,7 +13,6 @@ const firebaseConfig = {
   measurementId: "G-14GTGFP4KY"
 };
 
-// Initialize Firebase
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 export const db = getFirestore(app);
