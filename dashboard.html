@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CasualMITEC - Staff Dashboard</title>
+<style>
+body{font-family:Arial,sans-serif;margin:0;padding:0;background:#f9f9f9;}
+header{padding:20px;background:#007BFF;color:white;text-align:center;}
+.card{background:white;padding:15px;margin:15px;border-radius:8px;box-shadow:0 2px 5px rgba(0,0,0,0.1);}
+button{padding:10px 20px;margin:5px;border:none;border-radius:5px;cursor:pointer;}
+.clock-in{background:#28A745;color:white;}
+.clock-out{background:#DC3545;color:white;}
+</style>
+</head>
+<body>
+
+<header>
+<h1>CasualMITEC Dashboard</h1>
+<p id="welcome-msg">Loading...</p>
+<button onclick="logout()">Logout</button>
+</header>
+
+<section id="upcoming-shifts">
+<h2>Upcoming Shifts</h2>
+<div id="shift-list"></div>
+</section>
+
+<section id="announcements">
+<h2>Latest Announcements</h2>
+<div id="announcement-list"></div>
+</section>
+
+<script src="https://www.gstatic.com/firebasejs/10.6.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.6.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.6.0/firebase-firestore-compat.js"></script>
+<script src="firebase-config.js"></script>
+
+<script>
+auth.onAuthStateChanged(user=>{
+  if(!user){ window.location.href='index.html'; }
+  else{
+    document.getElementById('welcome-msg').innerText=`Hi ${user.displayName||user.email}`;
+    loadShifts(user.uid);
+    loadAnnouncements();
+  }
+});
+
+function loadShifts(uid){
+  db.collection('shifts')
+    .where('userId','==',uid)
+    .orderBy('date','asc')
+    .limit(5)
+    .get()
+    .then(snapshot=>{
+      const container=document.getElementById('shift-list');
+      container.innerHTML='';
+      snapshot.forEach(doc=>{
+        const shift=doc.data();
+        const shiftCard=document.createElement('div');
+        shiftCard.className='card';
+        shiftCard.innerHTML=`
+          <strong>${shift.date} - ${shift.location}</strong><br>
+          Shift: ${shift.startTime} - ${shift.endTime}<br>
+          Status: ${shift.clockIn?'Clocked In':'Not Clocked In'}<br>
+          <button class="clock-in" onclick="clockIn('${doc.id}')">Clock In</button>
+          <button class="clock-out" onclick="clockOut('${doc.id}')">Clock Out</button>
+        `;
+        container.appendChild(shiftCard);
+      });
+    });
+}
+
+function clockIn(shiftId){
+  const uid=auth.currentUser.uid;
+  db.collection('shifts').doc(shiftId).update({ clockIn:firebase.firestore.Timestamp.now() })
+    .then(()=> loadShifts(uid));
+}
+
+function clockOut(shiftId){
+  const uid=auth.currentUser.uid;
+  db.collection('shifts').doc(shiftId).update({ clockOut:firebase.firestore.Timestamp.now() })
+    .then(()=> loadShifts(uid));
+}
+
+function loadAnnouncements(){
+  db.collection('announcements').orderBy('date','desc').limit(5).get()
+    .then(snapshot=>{
+      const container=document.getElementById('announcement-list');
+      container.innerHTML='';
+      snapshot.forEach(doc=>{
+        const ann=doc.data();
+        const annCard=document.createElement('div');
+        annCard.className='card';
+        annCard.innerHTML=`<strong>${ann.date.toDate().toLocaleDateString()}</strong><br>${ann.message}`;
+        container.appendChild(annCard);
+      });
+    });
+}
+
+function logout(){ auth.signOut().then(()=>window.location.href='index.html'); }
+</script>
+</body>
+</html>
