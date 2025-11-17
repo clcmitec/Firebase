@@ -31,74 +31,68 @@ button{padding:10px 20px;margin:5px;border:none;border-radius:5px;cursor:pointer
 <div id="announcement-list"></div>
 </section>
 
-<script src="https://www.gstatic.com/firebasejs/10.6.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.6.0/firebase-auth-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.6.0/firebase-firestore-compat.js"></script>
-<script src="firebase-config.js"></script>
+<script type="module">
+import { auth, db } from './firebase-config.js';
+import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.6.0/firebase-auth.js";
+import { collection, query, where, orderBy, limit, getDocs, updateDoc, doc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.6.0/firebase-firestore.js";
 
-<script>
-auth.onAuthStateChanged(user=>{
+onAuthStateChanged(auth, async user=>{
   if(!user){ window.location.href='index.html'; }
   else{
-    document.getElementById('welcome-msg').innerText=`Hi ${user.displayName||user.email}`;
-    loadShifts(user.uid);
-    loadAnnouncements();
+    document.getElementById('welcome-msg').innerText=`Hi ${user.email}`;
+    await loadShifts(user.uid);
+    await loadAnnouncements();
   }
 });
 
-function loadShifts(uid){
-  db.collection('shifts')
-    .where('userId','==',uid)
-    .orderBy('date','asc')
-    .limit(5)
-    .get()
-    .then(snapshot=>{
-      const container=document.getElementById('shift-list');
-      container.innerHTML='';
-      snapshot.forEach(doc=>{
-        const shift=doc.data();
-        const shiftCard=document.createElement('div');
-        shiftCard.className='card';
-        shiftCard.innerHTML=`
-          <strong>${shift.date} - ${shift.location}</strong><br>
-          Shift: ${shift.startTime} - ${shift.endTime}<br>
-          Status: ${shift.clockIn?'Clocked In':'Not Clocked In'}<br>
-          <button class="clock-in" onclick="clockIn('${doc.id}')">Clock In</button>
-          <button class="clock-out" onclick="clockOut('${doc.id}')">Clock Out</button>
-        `;
-        container.appendChild(shiftCard);
-      });
-    });
+async function loadShifts(uid){
+  const shiftQuery = query(collection(db,'shifts'), where('userId','==',uid), orderBy('date','asc'), limit(5));
+  const snapshot = await getDocs(shiftQuery);
+  const container = document.getElementById('shift-list');
+  container.innerHTML='';
+  snapshot.forEach(docSnap=>{
+    const shift = docSnap.data();
+    const shiftCard = document.createElement('div');
+    shiftCard.className='card';
+    shiftCard.innerHTML=`
+      <strong>${shift.date} - ${shift.location}</strong><br>
+      Shift: ${shift.startTime} - ${shift.endTime}<br>
+      Status: ${shift.clockIn?'Clocked In':'Not Clocked In'}<br>
+      <button class="clock-in" onclick="clockIn('${docSnap.id}')">Clock In</button>
+      <button class="clock-out" onclick="clockOut('${docSnap.id}')">Clock Out</button>
+    `;
+    container.appendChild(shiftCard);
+  });
 }
 
-function clockIn(shiftId){
-  const uid=auth.currentUser.uid;
-  db.collection('shifts').doc(shiftId).update({ clockIn:firebase.firestore.Timestamp.now() })
-    .then(()=> loadShifts(uid));
+async function clockIn(shiftId){
+  await updateDoc(doc(db,'shifts',shiftId), { clockIn: serverTimestamp() });
+  const uid = auth.currentUser.uid;
+  loadShifts(uid);
 }
 
-function clockOut(shiftId){
-  const uid=auth.currentUser.uid;
-  db.collection('shifts').doc(shiftId).update({ clockOut:firebase.firestore.Timestamp.now() })
-    .then(()=> loadShifts(uid));
+async function clockOut(shiftId){
+  await updateDoc(doc(db,'shifts',shiftId), { clockOut: serverTimestamp() });
+  const uid = auth.currentUser.uid;
+  loadShifts(uid);
 }
 
-function loadAnnouncements(){
-  db.collection('announcements').orderBy('date','desc').limit(5).get()
-    .then(snapshot=>{
-      const container=document.getElementById('announcement-list');
-      container.innerHTML='';
-      snapshot.forEach(doc=>{
-        const ann=doc.data();
-        const annCard=document.createElement('div');
-        annCard.className='card';
-        annCard.innerHTML=`<strong>${ann.date.toDate().toLocaleDateString()}</strong><br>${ann.message}`;
-        container.appendChild(annCard);
-      });
-    });
+async function loadAnnouncements(){
+  const annQuery = query(collection(db,'announcements'), orderBy('date','desc'), limit(5));
+  const snapshot = await getDocs(annQuery);
+  const container = document.getElementById('announcement-list');
+  container.innerHTML='';
+  snapshot.forEach(docSnap=>{
+    const ann = docSnap.data();
+    const annCard = document.createElement('div');
+    annCard.className='card';
+    annCard.innerHTML=`<strong>${ann.date.toDate().toLocaleDateString()}</strong><br>${ann.message}`;
+    container.appendChild(annCard);
+  });
 }
 
-function logout(){ auth.signOut().then(()=>window.location.href='index.html'); }
+function logout(){ signOut(auth).then(()=>window.location.href='index.html'); }
 </script>
+
 </body>
 </html>
